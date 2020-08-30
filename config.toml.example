@@ -1,0 +1,37 @@
+DEBUG = true
+CACHE_TYPE = "filesystem"
+CACHE_DIR = "/tmp/cache"
+CACHE_DEFAULT_TIMEOUT = 600
+JWT_SECRET = "secret1"
+SECRET_KEY = "secret2"
+
+me = "https://taoetc.org"
+language = "en"
+
+[hcard]
+  [hcard.u]
+  name = "Beto Dealmeida"
+  photo = "http://www.gravatar.com/avatar/58b573d3eac03131faee739dfc7b360a"
+  url = "https://taoetc.org/"
+  email = "roberto@dealmeida.net"
+
+  [hcard.p]
+  street-address = "185 Channel St. #707"
+  locality = "San Francisco"
+  region = "CA"
+  country-name = "USA"
+
+  [hcard.rel-me]
+  Music = "https://thefishermenandthepriestess.com/"
+  Github = "https://github.com/betodealmeida"
+  Twitter = "https://twitter.com/dealmeida"
+
+[oauth]
+  [oauth.github]
+  client_id = ""
+  client_secret = ""
+
+  [oauth.twitter]
+  api_key = ""
+  api_secret = ""
+  bearer_token = ""
