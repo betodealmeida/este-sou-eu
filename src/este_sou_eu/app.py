@@ -39,13 +39,13 @@ cache = Cache(app)
 
 # XXX load only those configured
 github_blueprint = make_github_blueprint(
-    client_id=config["oauth"]["github"]["client_id"],
-    client_secret=config["oauth"]["github"]["client_secret"],
+    client_id=app.config["oauth"]["github"]["client_id"],
+    client_secret=app.config["oauth"]["github"]["client_secret"],
 )
 app.register_blueprint(github_blueprint, url_prefix="/login")
 twitter_blueprint = make_twitter_blueprint(
-    api_key=config["oauth"]["twitter"]["api_key"],
-    api_secret=config["oauth"]["twitter"]["api_secret"],
+    api_key=app.config["oauth"]["twitter"]["api_key"],
+    api_secret=app.config["oauth"]["twitter"]["api_secret"],
 )
 app.register_blueprint(twitter_blueprint, url_prefix="/login")
 
@@ -107,10 +107,10 @@ def find_profiles(me):
 @app.route("/")
 def index():
     headers = Headers()
-    headers.add("Link", f'<{config["me"]}/auth>; rel="authorization_endpoint"')
-    headers.add("Link", f'<{config["me"]}/token>; rel="token_endpoint"')
+    headers.add("Link", f'<{app.config["me"]}/auth>; rel="authorization_endpoint"')
+    headers.add("Link", f'<{app.config["me"]}/token>; rel="token_endpoint"')
 
-    return render_template("hcard.html", config=config), headers
+    return render_template("hcard.html", config=app.config), headers
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -318,7 +318,7 @@ def post_token(grant_type: str, code: str, client_id: str, redirect_uri: str):
             "client_id": payload["client_id"],
             "scope": payload["scope"],
         },
-        config["JWT_SECRET"],
+        app.config["JWT_SECRET"],
         algorithm="HS256",
     )
     cache.set(access_token, True)
@@ -344,7 +344,7 @@ def get_token():
     if access_token not in cache:
         abort(400, {"messages": ["Invalid access token"]})
 
-    payload = jwt.decode(access_token, config["JWT_SECRET"], algorithms=["HS256"])
+    payload = jwt.decode(access_token, app.config["JWT_SECRET"], algorithms=["HS256"])
     return jsonify(payload)
 
 
