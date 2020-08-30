@@ -34,18 +34,19 @@ PROVIDERS = {
 
 
 app = Flask(__name__)
-app.config.from_file("config.toml", load=toml.load)
+config = toml.load("config.toml")
+app.config.from_mapping(**config)
 cache = Cache(app)
 
 # XXX load only those configured
 github_blueprint = make_github_blueprint(
-    client_id=app.config["oauth"]["github"]["client_id"],
-    client_secret=app.config["oauth"]["github"]["client_secret"],
+    client_id=config["oauth"]["github"]["client_id"],
+    client_secret=config["oauth"]["github"]["client_secret"],
 )
 app.register_blueprint(github_blueprint, url_prefix="/login")
 twitter_blueprint = make_twitter_blueprint(
-    api_key=app.config["oauth"]["twitter"]["api_key"],
-    api_secret=app.config["oauth"]["twitter"]["api_secret"],
+    api_key=config["oauth"]["twitter"]["api_key"],
+    api_secret=config["oauth"]["twitter"]["api_secret"],
 )
 app.register_blueprint(twitter_blueprint, url_prefix="/login")
 
@@ -63,6 +64,9 @@ def get_client_info(client_id):
             break
     else:
         app_info = {}
+
+    app_info.setdefault("name", [client_id])
+    app_info.setdefault("url", [client_id])
 
     # ensure URLs are absolute
     for prop in ["logo", "url", "photo"]:
@@ -107,10 +111,10 @@ def find_profiles(me):
 @app.route("/")
 def index():
     headers = Headers()
-    headers.add("Link", f'<{app.config["me"]}/auth>; rel="authorization_endpoint"')
-    headers.add("Link", f'<{app.config["me"]}/token>; rel="token_endpoint"')
+    headers.add("Link", f'<{config["me"]}/auth>; rel="authorization_endpoint"')
+    headers.add("Link", f'<{config["me"]}/token>; rel="token_endpoint"')
 
-    return render_template("hcard.html", config=app.config), headers
+    return render_template("hcard.html", config=config), headers
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -181,7 +185,7 @@ def authorized(blueprint, token):
     if "payload" not in session:
         return redirect(url_for("index"))
     payload = session["payload"]
-    return redirect(url_for("get_auth"), **payload)
+    return redirect(url_for("get_auth", **payload))
 
 
 @app.route("/logout", methods=["GET"])
@@ -193,7 +197,7 @@ def logout():
 @app.route("/auth", methods=["GET"])
 @use_kwargs(
     {
-        "response_type": fields.Str(required=True, validate=lambda rt: rt == "code"),
+        "response_type": fields.Str(required=True),
         "me": fields.URL(required=True),
         "client_id": fields.URL(required=True),
         "redirect_uri": fields.URL(required=True),
@@ -252,7 +256,7 @@ def get_auth(
     # and MUST be valid for only one use. A maximum lifetime of 10 minutes is
     # recommended. See OAuth 2.0 Section 4.1.2 for additional requirements on the
     # authorization code.
-    code = uuid.uuid4()
+    code = str(uuid.uuid4())
     cache.set(code, payload, timeout=timedelta(minutes=10).total_seconds())
     url = f"{redirect_uri}?code={code}&state={state}"
     return render_template(
@@ -264,14 +268,15 @@ def get_auth(
 @use_kwargs(
     {
         "grant_type": fields.Str(
-            required=True, validate=lambda gt: gt == "authorization_code"
+            required=False, validate=lambda gt: gt == "authorization_code"
         ),
         "code": fields.Str(required=True),
         "client_id": fields.URL(required=True),
         "redirect_uri": fields.URL(required=True),
-    }
+    },
+    location="form",
 )
-def post_auth(grant_type: str, code: str, client_id: str, redirect_uri: str):
+def post_auth(code: str, client_id: str, redirect_uri: str, **kwargs: str):
     # The authorization endpoint verifies that the authorization code is valid,
     # has not yet been used, and that it was issued for the matching client_id
     # and redirect_uri.
@@ -289,14 +294,15 @@ def post_auth(grant_type: str, code: str, client_id: str, redirect_uri: str):
 @use_kwargs(
     {
         "grant_type": fields.Str(
-            required=True, validate=lambda gt: gt == "authorization_code"
+            required=False, validate=lambda gt: gt == "authorization_code"
         ),
         "code": fields.Str(required=True),
         "client_id": fields.URL(required=True),
         "redirect_uri": fields.URL(required=True),
-    }
+    },
+    location="form",
 )
-def post_token(grant_type: str, code: str, client_id: str, redirect_uri: str):
+def post_token(code: str, client_id: str, redirect_uri: str, **kwargs: str):
     # The token endpoint needs to verify that the authorization code is valid,
     # and that it was issued for the matching client_id and redirect_uri, and
     # contains at least one scope. If the authorization code was issued with no
@@ -318,7 +324,7 @@ def post_token(grant_type: str, code: str, client_id: str, redirect_uri: str):
             "client_id": payload["client_id"],
             "scope": payload["scope"],
         },
-        app.config["JWT_SECRET"],
+        config["JWT_SECRET"],
         algorithm="HS256",
     )
     cache.set(access_token, True)
@@ -344,7 +350,7 @@ def get_token():
     if access_token not in cache:
         abort(400, {"messages": ["Invalid access token"]})
 
-    payload = jwt.decode(access_token, app.config["JWT_SECRET"], algorithms=["HS256"])
+    payload = jwt.decode(access_token, config["JWT_SECRET"], algorithms=["HS256"])
     return jsonify(payload)
 
 
@@ -364,3 +370,7 @@ def handle_error(err):
         return jsonify({"errors": messages}), err.code, headers
     else:
         return jsonify({"errors": messages}), err.code
+
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0')
