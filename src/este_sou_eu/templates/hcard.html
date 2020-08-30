@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="{{ config.language }}">
+<head>
+  <meta charset=utf-8>
+  <title>{{ config.hcard.u.name }}</title>
+  <link rel="authorization_endpoint" href="{{ config.me }}/auth">
+  <link rel="token_endpoint" href="{{ config.me }}/token">
+</head>
+<body>
+  <div class="h-card">
+    <p><img class="u-photo" src="{{ config.hcard.u.photo }}" alt="" /></p>
+    <p><a class="p-name u-url" href="{{ config.hcard.u.url }}">{{ config.hcard.u.name }}</a></p>
+    <address>
+      <a class="u-email" href="mailto:{{ config.hcard.u.email }}">{{ config.hcard.u.email }}</a><br>
+      <span class="p-street-address">{{ config.hcard.p["street-address"] }}</span><br>
+      <span class="p-locality">{{ config.hcard.p.locality }}</span><br>
+      <span class="p-region">{{ config.hcard.p.region }}</span><br>
+      <span class="p-country-name">{{ config.hcard.p["country-name"] }}</span>
+    </address>
+    <ul>
+      {% for service, url in config.hcard["rel-me"].items() %}
+        <li><a href="{{ url }}" rel="me">{{ service }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</body>
+</html>

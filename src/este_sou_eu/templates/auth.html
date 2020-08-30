@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="{{ config.language }}">
+<head>
+  <meta charset=utf-8>
+  <title>Give access to {{ app_info.name[0] }}?</title>
+</head>
+<body>
+  <p>
+    Are you sure you want to allow
+    <a href="{{ app_info.url[0] }}">{{ app_info.name[0] }}</a>
+    to access your site <strong>{{ me }}</strong>
+    {% if scope %}
+    with the scopes <em>{{ ", ".join(scope) }}</em>
+    {% endif %}
+    ?
+  </p>
+  <form method="post" action="/redirect">
+    <input type="submit" value="Yes">
+    <input type="hidden" id="url" name="url" value="{{ redirect_url }}">
+  </form>
+</body>
+</html>
