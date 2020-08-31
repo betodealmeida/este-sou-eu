@@ -4,7 +4,6 @@ from datetime import datetime
 from datetime import timedelta
 from typing import List
 
-import jwt
 import mf2py
 import requests
 import toml
@@ -38,25 +37,26 @@ config = toml.load("config.toml")
 app.config.from_mapping(**config)
 cache = Cache(app)
 
-# XXX load only those configured
-github_blueprint = make_github_blueprint(
-    client_id=config["oauth"]["github"]["client_id"],
-    client_secret=config["oauth"]["github"]["client_secret"],
-)
-app.register_blueprint(github_blueprint, url_prefix="/login")
-twitter_blueprint = make_twitter_blueprint(
-    api_key=config["oauth"]["twitter"]["api_key"],
-    api_secret=config["oauth"]["twitter"]["api_secret"],
-)
-app.register_blueprint(twitter_blueprint, url_prefix="/login")
+if "github" in config["oauth"]:
+    github_blueprint = make_github_blueprint(
+        client_id=config["oauth"]["github"]["client_id"],
+        client_secret=config["oauth"]["github"]["client_secret"],
+    )
+    app.register_blueprint(github_blueprint, url_prefix="/login")
+
+if "twitter" in config["oauth"]:
+    twitter_blueprint = make_twitter_blueprint(
+        api_key=config["oauth"]["twitter"]["api_key"],
+        api_secret=config["oauth"]["twitter"]["api_secret"],
+    )
+    app.register_blueprint(twitter_blueprint, url_prefix="/login")
 
 
 def get_client_info(client_id):
-    redirect_urls = []
-
     response = requests.get(client_id)
     html = response.content
 
+    # parse application info
     metadata = mf2py.parse(doc=html)
     for item in metadata["items"]:
         if "h-app" in item["type"]:
@@ -70,12 +70,13 @@ def get_client_info(client_id):
 
     # ensure URLs are absolute
     for prop in ["logo", "url", "photo"]:
-        if prop not in app_info:
-            break
-        app_info[prop] = [
-            urllib.parse.urljoin(client_id, url) for url in app_info[prop]
-        ]
+        if prop in app_info:
+            app_info[prop] = [
+                urllib.parse.urljoin(client_id, url) for url in app_info[prop]
+            ]
 
+    # find redirect URLs
+    redirect_urls = []
     if "Link" in response.headers:
         header = response.headers["Link"]
         links = requests.utils.parse_header_links(header)
@@ -100,9 +101,8 @@ def find_profiles(me):
     profiles = {}
     for anchor in anchors:
         link = anchor["href"]
-        # XXX try only those configured
         for provider, baseurl in PROVIDERS.items():
-            if link.startswith(baseurl):
+            if link.startswith(baseurl) and provider in config["oauth"]:
                 profiles[provider] = link
 
     return profiles
@@ -147,8 +147,8 @@ def rel_me_auth():
 @oauth_authorized.connect
 def authorized(blueprint, token):
     blueprint.token = token
-    me = session["tentative_me"]
-    profiles = session["profiles"]
+    me = session.pop("tentative_me")
+    profiles = session.pop("profiles")
 
     valid = False
     messages = []
@@ -182,10 +182,11 @@ def authorized(blueprint, token):
     session["me"] = me
 
     # continue authorization process
-    if "payload" not in session:
-        return redirect(url_for("index"))
-    payload = session["payload"]
-    return redirect(url_for("get_auth", **payload))
+    if "payload" in session:
+        payload = session.pop("payload")
+        return redirect(url_for("get_auth", **payload))
+
+    return redirect(url_for("index"))
 
 
 @app.route("/logout", methods=["GET"])
@@ -223,7 +224,7 @@ def get_auth(
         "scope": scope,
     }
 
-    # Make sure user is logged in; if not, set bookmark to resume process once
+    # Make sure user is logged in; if not, store payload to resume process once
     # they've successfully logged in
     if "me" not in session:
         session["payload"] = payload
@@ -318,16 +319,15 @@ def post_token(code: str, client_id: str, redirect_uri: str, **kwargs: str):
     if not payload["scope"]:
         abort(400, {"messages": ["Invalid empty scope"]})
 
-    access_token = jwt.encode(
+    access_token = str(uuid.uuid4())
+    cache.set(
+        access_token,
         {
             "me": payload["me"],
             "client_id": payload["client_id"],
             "scope": payload["scope"],
         },
-        config["JWT_SECRET"],
-        algorithm="HS256",
     )
-    cache.set(access_token, True)
 
     return jsonify(
         {
@@ -341,16 +341,21 @@ def post_token(code: str, client_id: str, redirect_uri: str, **kwargs: str):
 
 @app.route("/token", methods=["GET"])
 def get_token():
+    # If a resource server needs to verify that an access token is valid, it
+    # MUST make a GET request to the token endpoint containing an HTTP
+    # Authorization header with the Bearer Token according to [RFC6750]. Note
+    # that the request to the endpoint will not contain any user-identifying
+    # information, so the resource server (e.g. Micropub endpoint) will need
+    # to know via out-of-band methods which token endpoint is in use.
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         abort(401, {"messages": ["No valid authorization header found"]})
 
     access_token = auth_header.split(" ", 1)[1]
-
-    if access_token not in cache:
+    payload = cache.get(access_token)
+    if not payload:
         abort(400, {"messages": ["Invalid access token"]})
 
-    payload = jwt.decode(access_token, config["JWT_SECRET"], algorithms=["HS256"])
     return jsonify(payload)
 
 
@@ -361,8 +366,10 @@ def redirect_to_url(url: str):
 
 
 # Return validation errors as JSON
-@app.errorhandler(422)
 @app.errorhandler(400)
+@app.errorhandler(401)
+@app.errorhandler(403)
+@app.errorhandler(422)
 def handle_error(err):
     headers = err.data.get("headers", None)
     messages = err.data.get("messages", ["Invalid request."])
@@ -373,4 +380,4 @@ def handle_error(err):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0')
+    app.run(host="0.0.0.0")
