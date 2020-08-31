@@ -2,21 +2,57 @@
 <html lang="{{ config.language }}">
 <head>
   <meta charset=utf-8>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Give access to {{ app_info.name[0] }}?</title>
+  <link rel="stylesheet" href="https://unpkg.com/chota@latest">
+  <style>
+    body.dark {
+      --bg-color: #000;
+      --bg-secondary-color: #131316;
+      --font-color: #f5f5f5;
+      --color-grey: #ccc;
+      --color-darkGrey: #777;
+    }
+    .background {
+      background-color: var(--bg-secondary-color);
+    }
+    .h-card {
+      background-color: var(--bg-color);
+    }
+  </style>
+  <script>
+    if (window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.body.classList.add('dark');
+    }
+  </script>
 </head>
 <body>
-  <p>
-    Are you sure you want to allow
-    <a href="{{ app_info.url[0] }}">{{ app_info.name[0] }}</a>
-    to access your site <strong>{{ me }}</strong>
-    {% if scope %}
-    with the scopes <em>{{ ", ".join(scope) }}</em>
-    {% endif %}
-    ?
-  </p>
-  <form method="post" action="/redirect">
-    <input type="submit" value="Yes">
-    <input type="hidden" id="url" name="url" value="{{ redirect_url }}">
-  </form>
+  <div class="background is-center is-full-screen">
+  <div class="card">
+    <header>
+      {% if app_info.logo %}
+      <img src="{{ app_info.logo[0] }}" alt="" />
+      {% endif %}
+      {% if app_info.photo %}
+      <img src="{{ app_info.photo[0] }}" alt="" />
+      {% endif %}
+      <h4>Confirm access</h4>
+    </header>
+    <p>
+      Are you sure you want to allow
+      <a href="{{ app_info.url[0] }}">{{ app_info.name[0] }}</a>
+      to access your site <strong>{{ me }}</strong>
+      {% if scope %}
+      with the scopes <em>{{ ", ".join(scope) }}</em>
+      {% endif %}
+      ?
+    </p>
+    <form method="post" action="/redirect">
+      <p><input type="submit" value="Yes"></p>
+      <p><input type="hidden" id="url" name="url" value="{{ redirect_url }}"></p>
+    </form>
+  </div>
+  </div>
 </body>
 </html>

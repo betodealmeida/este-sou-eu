@@ -2,13 +2,40 @@
 <html lang="{{ config.language }}">
 <head>
   <meta charset=utf-8>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Login</title>
+  <link rel="stylesheet" href="https://unpkg.com/chota@latest">
+  <style>
+    body.dark {
+      --bg-color: #000;
+      --bg-secondary-color: #131316;
+      --font-color: #f5f5f5;
+      --color-grey: #ccc;
+      --color-darkGrey: #777;
+    }
+    .background {
+      background-color: var(--bg-secondary-color);
+    }
+  </style>
+  <script>
+    if (window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.body.classList.add('dark');
+    }
+  </script>
 </head>
 <body>
-  <p>Please type in your website:</p>
-  <form method="post" action="/login">
-    <input type="url" id="me" name="me" placeholder="https://">
-    <input type="submit" value="Submit">
-  </form>
+  <div class="background is-center is-full-screen">
+  <div class="card">
+    <header>
+      <h4>Login</h4>
+    </header>
+    <p>Please type in your website:</p>
+    <form method="post" action="/login">
+      <p><input type="url" id="me" name="me" placeholder="https://"></p>
+      <p><input type="submit" value="Submit"></p>
+    </form>
+  </div>
+  </div>
 </body>
 </html>
