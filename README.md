@@ -1,2 +1,2 @@
 # este-sou-eu
-A service for identify, authentication and authorization
+A service for identity, authentication and authorization
