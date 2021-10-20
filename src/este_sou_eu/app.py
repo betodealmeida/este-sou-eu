@@ -204,6 +204,8 @@ def logout():
         "redirect_uri": fields.URL(required=True),
         "state": fields.Str(required=True),
         "scope": fields.DelimitedList(fields.Str(), delimiter=" ", missing=[]),
+        "code_challenge": fields.Str(),
+        "code_challenge_method": fields.Str(),
     },
     location="query",
 )
@@ -214,6 +216,8 @@ def get_auth(
     redirect_uri: str,
     state: str,
     scope: List[str],
+    code_challenge: str,
+    code_challenge_method: str,
 ):
     payload = {
         "response_type": response_type,
@@ -222,6 +226,8 @@ def get_auth(
         "redirect_uri": redirect_uri,
         "state": state,
         "scope": scope,
+        "code_challenge": code_challenge,
+        "code_challenge_method": code_challenge_method,
     }
 
     # Make sure user is logged in; if not, store payload to resume process once
@@ -274,6 +280,7 @@ def get_auth(
         "code": fields.Str(required=True),
         "client_id": fields.URL(required=True),
         "redirect_uri": fields.URL(required=True),
+        "code_verifier": fields.Str(),
     },
     location="form",
 )
