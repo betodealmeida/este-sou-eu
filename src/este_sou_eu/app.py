@@ -2,7 +2,7 @@ import urllib.parse
 import uuid
 from datetime import datetime
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 import mf2py
 import requests
@@ -198,7 +198,7 @@ def logout():
 @app.route("/auth", methods=["GET"])
 @use_kwargs(
     {
-        "response_type": fields.Str(required=True),
+        "response_type": fields.Str(),
         "me": fields.URL(required=True),
         "client_id": fields.URL(required=True),
         "redirect_uri": fields.URL(required=True),
@@ -210,14 +210,14 @@ def logout():
     location="query",
 )
 def get_auth(
-    response_type: str,
     me: str,
     client_id: str,
     redirect_uri: str,
     state: str,
     scope: List[str],
-    code_challenge: str,
-    code_challenge_method: str,
+    response_type: Optional[str] = None,
+    code_challenge: Optional[str] = None,
+    code_challenge_method: Optional[str] = None,
 ):
     payload = {
         "response_type": response_type,
